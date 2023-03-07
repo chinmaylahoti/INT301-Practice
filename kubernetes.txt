@@ -1,0 +1,113 @@
+Master and Slave
+
+sudo su
+cd
+apt-get update
+swapoff -a
+nano /etc/fstab
+nano /etc/hostname
+nano /etc/hosts
+(restart the instances)
+
+sudo su
+cd
+apt-get install openssh-server
+apt-get update
+apt-get install -y docker.io
+systemctl enable docker
+systemctl start docker
+service docker restart
+sudo curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg|apt-key add
+echo "deb https://apt.kubernetes.io/ kubernetes-xenial main">/etc/apt/sources.list.d/Kubernetes.list
+apt-get update
+apt install -y kubelet=1.20.0-00 kubeadm=1.20.0-00 kubectl=1.20.0-00
+
+Master Only
+
+kubeadm init --pod-network-cidr=192.168.0.0/16 --ignore-preflight-errors=NumCPU --ignore-preflight-errors=Mem
+(one more step)
+ mkdir -p $HOME/.kube
+  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+  sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+
+Slave (Copy form master)
+
+kubeadm join 172.31.38.201:6443 --token jij74x.qnjkt4x20w0uymsb \
+    --discovery-token-ca-cert-hash sha256:969ac0124c9e85122b64205bd7b9e14837c7000968e3f8e6f110a69840dd83c9
+
+
+Master
+
+kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/calico.yaml
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v0.49.0/deploy/static/provider/baremetal/deploy.yaml
+
+
+Master
+
+kubectl get nodes
+kubectl get ns
+kubectl get api-resources
+
+
+Dashboard Commands
+
+Master
+
+git clone https://github.com/irsols-devops/kubernetes-dashboard
+kubectl apply -f ./kubernetes-dashboard/
+kubectl get pods --all-namespaces -o wide
+kubectl get services --all-namespaces -o wide
+
+cd kubernetes-dashboard/
+chmod +x get-dash.sh
+./get-dash.sh
+
+
+App Deployment Commands
+
+Master
+apt-get update
+nano /etc/hosts (check ip addresses)
+kubectl get nodes
+kubectl get pods --all-namespaces
+kubectl get pods --all-namespaces -o wide
+nano deploy.yaml (creating a yaml file)
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nging
+  labels:
+    app: nginx
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.7.9
+        ports:
+        - containerPort: 80
+---
+
+kubectl create deployment nginx --image=nginx:1.7.9
+kubectl get pods
+kubectl create -f deploy.yaml
+kubectl get pods
+kubectl get pods -o wide
+
+Check ip addresses appeared
+
+Slave
+docker ps
+curl ip of slave
+
+unset http_proxy
+unset https_proxy
